@@ -1,9 +1,10 @@
 # DiscoveryUI.py: UI + UX for Discovery tool
-import json
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QTableWidget, \
     QTableWidgetItem, QHBoxLayout, QSizePolicy, QCheckBox
+from tensorflow.python.ops.image_ops_impl import ResizeMethod
+
 from Discovery import DiscoveryLib as Lib
 import time
 
@@ -117,13 +118,10 @@ def browseFile(application, input_field):
 def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, headers=None):
     resetTable(result_table)
 
-    def should_sleep():
-        return rate_limit and rate_limit > 0
-
     headers_dict = parse_headers(headers) if headers else {}
 
     if len(url) != 0 and len(wordlist_path) != 0:
-        directories = Lib.run_folder_fuzzer(url, wordlist_path, headers=headers_dict)
+        directories = Lib.run_folder_fuzzer(base_url=url, wordlist_path=wordlist_path, headers=headers_dict, rate_limit=rate_limit)
         for path, info in directories.items():
             status = info.get("status_code")
             full_url = info.get("path")
@@ -132,11 +130,9 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, 
             result_table.setItem(row_position, 0, QTableWidgetItem(full_url))
             result_table.setItem(row_position, 1, QTableWidgetItem(str(status)))
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
-            if should_sleep():
-                time.sleep(1 / rate_limit)
 
     if len(url) != 0 and len(wordlist_path) != 0 and len(extensions) != 0:
-        files = Lib.run_files_fuzzer(url, wordlist_path, extensions.split(","), headers=headers_dict)
+        files = Lib.run_files_fuzzer(base_url=url, wordlist_path=wordlist_path, extensions=extensions.split(","), headers=headers_dict, rate_limit=rate_limit)
         for path, info in files.items():
             status = info.get("status_code")
             full_url = info.get("path")
@@ -145,8 +141,6 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, 
             result_table.setItem(row_position, 0, QTableWidgetItem(full_url))
             result_table.setItem(row_position, 1, QTableWidgetItem(str(status)))
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
-            if should_sleep():
-                time.sleep(1 / rate_limit)
 
 
 
