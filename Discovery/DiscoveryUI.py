@@ -1,8 +1,8 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QTableWidget, \
-    QTableWidgetItem, QHBoxLayout, QSizePolicy
+    QTableWidgetItem, QHBoxLayout, QSizePolicy, QCheckBox
 from Discovery import DiscoveryLib as Lib
-from Discovery.DiscoveryLib import validate_rate_input
+import time
 
 
 def createDiscoveryPage(application):
@@ -36,20 +36,25 @@ def createDiscoveryPage(application):
     rate_layout = QHBoxLayout()
     rate_label = QLabel("Rate Limit (req/s):")
     rate_input = QLineEdit("10")
+    rate_checkbox = QCheckBox("Enable Rate Limit")
+    rate_checkbox.setChecked(False)
+    rate_input.setEnabled(rate_checkbox.isChecked())
+    rate_checkbox.stateChanged.connect(lambda state: rate_input.setEnabled(state == Qt.Checked))
+
     rate_label.setFixedWidth(100)
+    rate_layout.addWidget(rate_checkbox)
     rate_layout.addWidget(rate_label)
     rate_layout.addWidget(rate_input)
 
     buttons_layout = QHBoxLayout()
     run_button = QPushButton("Start Discovery")
-    rate = validate_rate_input(rate_input.text())
     run_button.clicked.connect(
         lambda: runDiscovery(
             url_input.text(),
             wordlist_input.text(),
             extensions_input.text(),
             result_table,
-            rate
+            float(rate_input.text()) if rate_checkbox.isChecked() and rate_input.text().strip() else None
         )
     )
 
@@ -91,24 +96,10 @@ def browseFile(application, input_field):
     if file_path:
         input_field.setText(file_path)
 
-
-import time
-
-import time
-
 def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None):
-    """
-    Lance la découverte avec ou sans limite de requêtes par seconde.
-    :param url: URL de base
-    :param wordlist_path: Chemin vers le fichier wordlist
-    :param extensions: Extensions à tester
-    :param result_table: Tableau pour afficher les résultats
-    :param rate_limit: Limite de requêtes par seconde (None pour désactiver la limite)
-    """
     resetTable(result_table)
 
     def should_sleep():
-        """Vérifie si une pause est nécessaire."""
         return rate_limit and rate_limit > 0
 
     if len(url) != 0 and len(wordlist_path) != 0:
@@ -136,7 +127,6 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None):
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
             if should_sleep():
                 time.sleep(1 / rate_limit)
-
 
 
 def resetTable(result_table):
