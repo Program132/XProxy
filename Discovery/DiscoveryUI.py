@@ -1,8 +1,13 @@
+# DiscoveryUI.py: UI + UX for Discovery tool
+import json
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QTableWidget, \
     QTableWidgetItem, QHBoxLayout, QSizePolicy, QCheckBox
 from Discovery import DiscoveryLib as Lib
 import time
+
+from Discovery.DiscoveryLib import parse_headers
 
 
 def createDiscoveryPage(application):
@@ -12,6 +17,7 @@ def createDiscoveryPage(application):
     url_layout = QHBoxLayout()
     url_label = QLabel("URL:")
     url_input = QLineEdit()
+    url_input.setPlaceholderText("Exemple: https://example.com")
     url_label.setFixedWidth(100)
     url_layout.addWidget(url_label)
     url_layout.addWidget(url_input)
@@ -19,6 +25,7 @@ def createDiscoveryPage(application):
     wordlist_layout = QHBoxLayout()
     wordlist_label = QLabel("Wordlist Path:")
     wordlist_input = QLineEdit()
+    wordlist_input.setPlaceholderText("Exemple: /usr/share/wordlist/wordlist.txt")
     wordlist_browse_button = QPushButton("Search")
     wordlist_browse_button.clicked.connect(lambda: browseFile(application, wordlist_input))
     wordlist_label.setFixedWidth(100)
@@ -29,6 +36,7 @@ def createDiscoveryPage(application):
     extensions_layout = QHBoxLayout()
     extensions_label = QLabel("Extensions:")
     extensions_input = QLineEdit()
+    extensions_input.setPlaceholderText("Exemple: php,html,js")
     extensions_label.setFixedWidth(100)
     extensions_layout.addWidget(extensions_label)
     extensions_layout.addWidget(extensions_input)
@@ -46,6 +54,14 @@ def createDiscoveryPage(application):
     rate_layout.addWidget(rate_label)
     rate_layout.addWidget(rate_input)
 
+    headers_layout = QHBoxLayout()
+    headers_label = QLabel("Headers:")
+    headers_input = QLineEdit()
+    headers_input.setPlaceholderText("Exemple: User-Agent: Mozilla; X-Tester-X: program; Accept: */*")
+    headers_label.setFixedWidth(100)
+    headers_layout.addWidget(headers_label)
+    headers_layout.addWidget(headers_input)
+
     buttons_layout = QHBoxLayout()
     run_button = QPushButton("Start Discovery")
     run_button.clicked.connect(
@@ -54,7 +70,8 @@ def createDiscoveryPage(application):
             wordlist_input.text(),
             extensions_input.text(),
             result_table,
-            float(rate_input.text()) if rate_checkbox.isChecked() and rate_input.text().strip() else None
+            float(rate_input.text()) if rate_checkbox.isChecked() and rate_input.text().strip() else None,
+            headers_input.text()
         )
     )
 
@@ -82,6 +99,7 @@ def createDiscoveryPage(application):
     layout.addLayout(wordlist_layout)
     layout.addLayout(extensions_layout)
     layout.addLayout(rate_layout)
+    layout.addLayout(headers_layout)
     layout.addLayout(buttons_layout)
     layout.addWidget(result_table)
 
@@ -96,14 +114,16 @@ def browseFile(application, input_field):
     if file_path:
         input_field.setText(file_path)
 
-def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None):
+def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, headers=None):
     resetTable(result_table)
 
     def should_sleep():
         return rate_limit and rate_limit > 0
 
+    headers_dict = parse_headers(headers) if headers else {}
+
     if len(url) != 0 and len(wordlist_path) != 0:
-        directories = Lib.run_folder_fuzzer(url, wordlist_path)
+        directories = Lib.run_folder_fuzzer(url, wordlist_path, headers=headers_dict)
         for path, info in directories.items():
             status = info.get("status_code")
             full_url = info.get("path")
@@ -116,7 +136,7 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None):
                 time.sleep(1 / rate_limit)
 
     if len(url) != 0 and len(wordlist_path) != 0 and len(extensions) != 0:
-        files = Lib.run_files_fuzzer(url, wordlist_path, extensions.split(","))
+        files = Lib.run_files_fuzzer(url, wordlist_path, extensions.split(","), headers=headers_dict)
         for path, info in files.items():
             status = info.get("status_code")
             full_url = info.get("path")
@@ -127,6 +147,7 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None):
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
             if should_sleep():
                 time.sleep(1 / rate_limit)
+
 
 
 def resetTable(result_table):
