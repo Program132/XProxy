@@ -1,7 +1,10 @@
 import sys
+import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QToolBar, QPushButton, QWidget, QHBoxLayout, \
     QSizePolicy, QStackedWidget, QLabel, QLineEdit, QFileDialog, QVBoxLayout
 import Discovery.DiscoveryUI as DiscoveryUI
+
+
 
 class XProxy(QMainWindow):
     def __init__(self):

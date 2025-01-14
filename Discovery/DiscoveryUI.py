@@ -46,6 +46,13 @@ def createDiscoveryPage(application):
     buttons_layout.addWidget(reset_button)
     buttons_layout.setAlignment(Qt.AlignLeft)
 
+    rate_layout = QHBoxLayout()
+    rate_label = QLabel("Rate Limit (req/s):")
+    rate_input = QLineEdit("100")
+    rate_label.setFixedWidth(100)
+    rate_layout.addWidget(rate_label)
+    rate_layout.addWidget(rate_input)
+
     result_table = QTableWidget()
     result_table.setColumnCount(3)
     result_table.setHorizontalHeaderLabels(["Path", "Status Code", "File Name"])
@@ -59,6 +66,7 @@ def createDiscoveryPage(application):
     layout.addLayout(url_layout)
     layout.addLayout(wordlist_layout)
     layout.addLayout(extensions_layout)
+    layout.addLayout(rate_layout)
     layout.addLayout(buttons_layout)
     layout.addWidget(result_table)
 
@@ -74,7 +82,17 @@ def browseFile(application, input_field):
         input_field.setText(file_path)
 
 
-def runDiscovery(url, wordlist_path, extensions, result_table):
+import time
+
+def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=5):
+    """
+    Lance la découverte avec une limite de requêtes par seconde.
+    :param url: URL de base
+    :param wordlist_path: Chemin vers le fichier wordlist
+    :param extensions: Extensions à tester
+    :param result_table: Tableau pour afficher les résultats
+    :param rate_limit: Limite de requêtes par seconde
+    """
     resetTable(result_table)
 
     if len(url) != 0 and len(wordlist_path) != 0:
@@ -87,6 +105,7 @@ def runDiscovery(url, wordlist_path, extensions, result_table):
             result_table.setItem(row_position, 0, QTableWidgetItem(full_url))
             result_table.setItem(row_position, 1, QTableWidgetItem(str(status)))
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
+            time.sleep(1 / rate_limit)
 
     if len(url) != 0 and len(wordlist_path) != 0 and len(extensions) != 0:
         files = Lib.run_files_fuzzer(url, wordlist_path, extensions.split(","))
@@ -98,6 +117,8 @@ def runDiscovery(url, wordlist_path, extensions, result_table):
             result_table.setItem(row_position, 0, QTableWidgetItem(full_url))
             result_table.setItem(row_position, 1, QTableWidgetItem(str(status)))
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
+            time.sleep(1 / rate_limit)  # Pause pour respecter la limite
+
 
 
 def resetTable(result_table):
