@@ -2,6 +2,8 @@
 
 import requests
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 def validate_rate_input(rate_input):
     try:
@@ -39,20 +41,33 @@ def pathToList(path):
             wordlist.append(line.strip())
     return wordlist
 
-def run_folder_fuzzer(base_url: str, wordlist_path: str, headers=None, rate_limit=None):
+def run_folder_fuzzer(base_url: str, wordlist_path: str, headers=None, rate_limit=None, num_threads=4):
     if not base_url.endswith('/'):
         base_url += '/'
 
     valid_directories = {}
     wordlist = pathToList(wordlist_path)
-    for directory in wordlist:
+
+    def process_directory(directory):
         url = f"{base_url}/{directory}"
         res = check_if_url_is_valid(url, headers=headers)
         if res[0] and res[1] is not None:
-            valid_directories[directory] = {"status_code": res[1], "path": f"{base_url}{directory}"}
-        if rate_limit:  # Appliquer la limite si spécifiée
-            time.sleep(1 / rate_limit)
+            return directory, {"status_code": res[1], "path": f"{base_url}{directory}"}
+        return None
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        future_to_directory = {executor.submit(process_directory, directory): directory for directory in wordlist}
+
+        for future in as_completed(future_to_directory):
+            result = future.result()
+            if result:
+                directory, info = result
+                valid_directories[directory] = info
+            if rate_limit:
+                time.sleep(1 / rate_limit)
+
     return valid_directories
+
 
 
 
@@ -60,18 +75,31 @@ def add_ext_to_wordlist(wordlist: list, extensions: list):
     return [f"{entry}.{ext}" for entry in wordlist for ext in extensions]
 
 
-def run_files_fuzzer(base_url: str, wordlist_path: str, extensions: list, headers=None, rate_limit=None):
+def run_files_fuzzer(base_url: str, wordlist_path: str, extensions: list, headers=None, rate_limit=None, num_threads=4):
     if not base_url.endswith('/'):
         base_url += '/'
 
     valid_files = {}
     wordlist = pathToList(wordlist_path)
-    for possibleFile in add_ext_to_wordlist(wordlist, extensions):
-        url = f"{base_url}/{possibleFile}"
+    filelist = add_ext_to_wordlist(wordlist, extensions)
+
+    def process_file(possible_file):
+        url = f"{base_url}/{possible_file}"
         res = check_if_url_is_valid(url, headers=headers)
         if res[0] and res[1] is not None:
-            valid_files[possibleFile] = {"status_code": res[1], "path": f"{base_url}{possibleFile}"}
-        if rate_limit:
-            time.sleep(1 / rate_limit)
+            return possible_file, {"status_code": res[1], "path": f"{base_url}{possible_file}"}
+        return None
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        future_to_file = {executor.submit(process_file, possible_file): possible_file for possible_file in filelist}
+
+        for future in as_completed(future_to_file):
+            result = future.result()
+            if result:
+                possible_file, info = result
+                valid_files[possible_file] = info
+            if rate_limit:
+                time.sleep(1 / rate_limit)
+
     return valid_files
 

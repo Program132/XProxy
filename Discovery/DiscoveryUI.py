@@ -59,6 +59,13 @@ def createDiscoveryPage(application):
     headers_layout.addWidget(headers_label)
     headers_layout.addWidget(headers_input)
 
+    threads_layout = QHBoxLayout()
+    threads_label = QLabel("Number of Threads:")
+    threads_input = QLineEdit("4")
+    threads_label.setFixedWidth(100)
+    threads_layout.addWidget(threads_label)
+    threads_layout.addWidget(threads_input)
+
     buttons_layout = QHBoxLayout()
     run_button = QPushButton("Start Discovery")
     run_button.clicked.connect(
@@ -68,7 +75,8 @@ def createDiscoveryPage(application):
             extensions_input.text(),
             result_table,
             float(rate_input.text()) if rate_checkbox.isChecked() and rate_input.text().strip() else None,
-            headers_input.text()
+            headers_input.text(),
+            threads_input.text()
         )
     )
 
@@ -97,6 +105,7 @@ def createDiscoveryPage(application):
     layout.addLayout(extensions_layout)
     layout.addLayout(rate_layout)
     layout.addLayout(headers_layout)
+    layout.addLayout(threads_layout)
     layout.addLayout(buttons_layout)
     layout.addWidget(result_table)
 
@@ -111,13 +120,14 @@ def browseFile(application, input_field):
     if file_path:
         input_field.setText(file_path)
 
-def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, headers=None):
+def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, headers=None, threads_input=None):
     resetTable(result_table)
 
     headers_dict = parse_headers(headers) if headers else {}
+    num_threads = int(threads_input.text().strip()) if threads_input.text().strip().isdigit() else 4
 
     if len(url) != 0 and len(wordlist_path) != 0:
-        directories = Lib.run_folder_fuzzer(base_url=url, wordlist_path=wordlist_path, headers=headers_dict, rate_limit=rate_limit)
+        directories = Lib.run_folder_fuzzer(base_url=url, wordlist_path=wordlist_path, headers=headers_dict, rate_limit=rate_limit, )
         for path, info in directories.items():
             status = info.get("status_code")
             full_url = info.get("path")
