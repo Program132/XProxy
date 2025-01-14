@@ -127,7 +127,7 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, 
     num_threads = int(threads_input.text().strip()) if threads_input.text().strip().isdigit() else 4
 
     if len(url) != 0 and len(wordlist_path) != 0:
-        directories = Lib.run_folder_fuzzer(base_url=url, wordlist_path=wordlist_path, headers=headers_dict, rate_limit=rate_limit, )
+        directories = Lib.run_folder_fuzzer(base_url=url, wordlist_path=wordlist_path, headers=headers_dict, rate_limit=rate_limit, num_threads=num_threads)
         for path, info in directories.items():
             status = info.get("status_code")
             full_url = info.get("path")
@@ -138,7 +138,7 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None, 
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
 
     if len(url) != 0 and len(wordlist_path) != 0 and len(extensions) != 0:
-        files = Lib.run_files_fuzzer(base_url=url, wordlist_path=wordlist_path, extensions=extensions.split(","), headers=headers_dict, rate_limit=rate_limit)
+        files = Lib.run_files_fuzzer(base_url=url, wordlist_path=wordlist_path, extensions=extensions.split(","), headers=headers_dict, rate_limit=rate_limit, num_threads=num_threads)
         for path, info in files.items():
             status = info.get("status_code")
             full_url = info.get("path")
