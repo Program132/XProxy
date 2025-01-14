@@ -1,5 +1,13 @@
 import requests
 
+def validate_rate_input(rate_input):
+    try:
+        rate = float(rate_input.strip())
+        return rate if rate > 0 else None
+    except ValueError:
+        return None
+
+
 def check_if_url_is_valid(url):
     try:
         response = requests.get(url, timeout=5)

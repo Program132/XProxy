@@ -2,6 +2,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QTableWidget, \
     QTableWidgetItem, QHBoxLayout, QSizePolicy
 from Discovery import DiscoveryLib as Lib
+from Discovery.DiscoveryLib import validate_rate_input
 
 
 def createDiscoveryPage(application):
@@ -32,10 +33,26 @@ def createDiscoveryPage(application):
     extensions_layout.addWidget(extensions_label)
     extensions_layout.addWidget(extensions_input)
 
+    rate_layout = QHBoxLayout()
+    rate_label = QLabel("Rate Limit (req/s):")
+    rate_input = QLineEdit("10")
+    rate_label.setFixedWidth(100)
+    rate_layout.addWidget(rate_label)
+    rate_layout.addWidget(rate_input)
+
     buttons_layout = QHBoxLayout()
     run_button = QPushButton("Start Discovery")
+    rate = validate_rate_input(rate_input.text())
     run_button.clicked.connect(
-        lambda: runDiscovery(url_input.text(), wordlist_input.text(), extensions_input.text(), result_table))
+        lambda: runDiscovery(
+            url_input.text(),
+            wordlist_input.text(),
+            extensions_input.text(),
+            result_table,
+            rate
+        )
+    )
+
     reset_button = QPushButton("Reset")
     reset_button.clicked.connect(lambda: resetTable(result_table))
 
@@ -45,13 +62,6 @@ def createDiscoveryPage(application):
     buttons_layout.addWidget(run_button)
     buttons_layout.addWidget(reset_button)
     buttons_layout.setAlignment(Qt.AlignLeft)
-
-    rate_layout = QHBoxLayout()
-    rate_label = QLabel("Rate Limit (req/s):")
-    rate_input = QLineEdit("100")
-    rate_label.setFixedWidth(100)
-    rate_layout.addWidget(rate_label)
-    rate_layout.addWidget(rate_input)
 
     result_table = QTableWidget()
     result_table.setColumnCount(3)
@@ -84,16 +94,22 @@ def browseFile(application, input_field):
 
 import time
 
-def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=5):
+import time
+
+def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=None):
     """
-    Lance la découverte avec une limite de requêtes par seconde.
+    Lance la découverte avec ou sans limite de requêtes par seconde.
     :param url: URL de base
     :param wordlist_path: Chemin vers le fichier wordlist
     :param extensions: Extensions à tester
     :param result_table: Tableau pour afficher les résultats
-    :param rate_limit: Limite de requêtes par seconde
+    :param rate_limit: Limite de requêtes par seconde (None pour désactiver la limite)
     """
     resetTable(result_table)
+
+    def should_sleep():
+        """Vérifie si une pause est nécessaire."""
+        return rate_limit and rate_limit > 0
 
     if len(url) != 0 and len(wordlist_path) != 0:
         directories = Lib.run_folder_fuzzer(url, wordlist_path)
@@ -105,7 +121,8 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=5):
             result_table.setItem(row_position, 0, QTableWidgetItem(full_url))
             result_table.setItem(row_position, 1, QTableWidgetItem(str(status)))
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
-            time.sleep(1 / rate_limit)
+            if should_sleep():
+                time.sleep(1 / rate_limit)
 
     if len(url) != 0 and len(wordlist_path) != 0 and len(extensions) != 0:
         files = Lib.run_files_fuzzer(url, wordlist_path, extensions.split(","))
@@ -117,7 +134,8 @@ def runDiscovery(url, wordlist_path, extensions, result_table, rate_limit=5):
             result_table.setItem(row_position, 0, QTableWidgetItem(full_url))
             result_table.setItem(row_position, 1, QTableWidgetItem(str(status)))
             result_table.setItem(row_position, 2, QTableWidgetItem(path))
-            time.sleep(1 / rate_limit)  # Pause pour respecter la limite
+            if should_sleep():
+                time.sleep(1 / rate_limit)
 
 
 
