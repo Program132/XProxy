@@ -3,11 +3,7 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QTableWidget, \
     QTableWidgetItem, QHBoxLayout, QSizePolicy, QCheckBox
-from tensorflow.python.ops.image_ops_impl import ResizeMethod
-
 from Discovery import DiscoveryLib as Lib
-import time
-
 from Discovery.DiscoveryLib import parse_headers
 
 
