@@ -22,6 +22,10 @@ def parse_headers(headers_str):
                 headers[key] = value
     return headers
 
+def split_wordlist(wordlist, n):
+    k, m = divmod(len(wordlist), n)
+    return [wordlist[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
+
 
 def check_if_url_is_valid(url, headers=None):
     try:
@@ -41,30 +45,30 @@ def pathToList(path):
             wordlist.append(line.strip())
     return wordlist
 
-def run_folder_fuzzer(base_url: str, wordlist_path: str, headers=None, rate_limit=None, num_threads=4):
+def run_folder_fuzzer(base_url: str, wordlist_path: str, headers=None, rate_limit=None, num_threads=1):
     if not base_url.endswith('/'):
         base_url += '/'
 
     valid_directories = {}
     wordlist = pathToList(wordlist_path)
+    wordlist_parts = split_wordlist(wordlist, num_threads)
 
-    def process_directory(directory):
-        url = f"{base_url}/{directory}"
-        res = check_if_url_is_valid(url, headers=headers)
-        if res[0] and res[1] is not None:
-            return directory, {"status_code": res[1], "path": f"{base_url}{directory}"}
-        return None
-
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        future_to_directory = {executor.submit(process_directory, directory): directory for directory in wordlist}
-
-        for future in as_completed(future_to_directory):
-            result = future.result()
-            if result:
-                directory, info = result
-                valid_directories[directory] = info
+    def process_directories(sublist):
+        local_results = {}
+        for directory in sublist:
+            url = f"{base_url}{directory}"
+            res = check_if_url_is_valid(url, headers=headers)
+            if res[0] and res[1] is not None:
+                local_results[directory] = {"status_code": res[1], "path": url}
             if rate_limit:
                 time.sleep(1 / rate_limit)
+        return local_results
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(process_directories, part) for part in wordlist_parts]
+
+        for future in as_completed(futures):
+            valid_directories.update(future.result())
 
     return valid_directories
 
@@ -75,31 +79,32 @@ def add_ext_to_wordlist(wordlist: list, extensions: list):
     return [f"{entry}.{ext}" for entry in wordlist for ext in extensions]
 
 
-def run_files_fuzzer(base_url: str, wordlist_path: str, extensions: list, headers=None, rate_limit=None, num_threads=4):
+def run_files_fuzzer(base_url: str, wordlist_path: str, extensions: list, headers=None, rate_limit=None, num_threads=1):
     if not base_url.endswith('/'):
         base_url += '/'
 
     valid_files = {}
     wordlist = pathToList(wordlist_path)
     filelist = add_ext_to_wordlist(wordlist, extensions)
+    filelist_parts = split_wordlist(filelist, num_threads)
 
-    def process_file(possible_file):
-        url = f"{base_url}/{possible_file}"
-        res = check_if_url_is_valid(url, headers=headers)
-        if res[0] and res[1] is not None:
-            return possible_file, {"status_code": res[1], "path": f"{base_url}{possible_file}"}
-        return None
-
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        future_to_file = {executor.submit(process_file, possible_file): possible_file for possible_file in filelist}
-
-        for future in as_completed(future_to_file):
-            result = future.result()
-            if result:
-                possible_file, info = result
-                valid_files[possible_file] = info
+    def process_files(sublist):
+        local_results = {}
+        for possible_file in sublist:
+            url = f"{base_url}{possible_file}"
+            res = check_if_url_is_valid(url, headers=headers)
+            if res[0] and res[1] is not None:
+                local_results[possible_file] = {"status_code": res[1], "path": url}
             if rate_limit:
                 time.sleep(1 / rate_limit)
+        return local_results
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(process_files, part) for part in filelist_parts]
+
+        for future in as_completed(futures):
+            valid_files.update(future.result())
 
     return valid_files
+
 
